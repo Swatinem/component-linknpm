@@ -1,0 +1,22 @@
+{
+  "name": "component-linknpm",
+  "description": "Link downloaded components into node_modules",
+  "version": "0.0.1",
+  "keywords": [],
+  "bin": {
+    "component-linknpm": "./bin/component-linknpm.js"
+  },
+  "main": "./index",
+  "maintainers": [
+    "Arpad Borsos <arpad.borsos@googlemail.com> (http://swatinem.de)"
+  ],
+  "dependencies": {
+  },
+  "devDependencies": {
+    "jshint": "*"
+  },
+  "scripts": {
+  },
+  "repository": "git://github.com/Swatinem/component-linknpm.git",
+  "license": "LGPLv3"
+}
