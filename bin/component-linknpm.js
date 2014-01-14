@@ -1,56 +1,72 @@
 #!/usr/bin/env node
 /* vim: set shiftwidth=2 tabstop=2 noexpandtab textwidth=80 wrap : */
-"use strict";
+//"use strict";
 
+var path = require('path');
 var fs = require('fs');
-var read = fs.readFileSync;
 var write = fs.writeFileSync;
 var exists = fs.existsSync;
 var link = fs.symlinkSync;
-var readlink = fs.readlinkSync;
 
 if (!exists('component.json')) {
 	console.log('There needs to be a `component.json` in this directory.');
 	process.exit(1);
 }
 
-var deps = Object.keys(JSON.parse(read('component.json', 'utf8')).dependencies);
+var deps = dependencies('component.json');
 
-deps.forEach(function (dep) {
-	dep = dep.split('/');
-	//var user = dep[0];
-	var repo = dep[1];
-	var component = 'components/' + dep.join('-');
-	var linkto = '../' + component;
-	var nodemodule = 'node_modules/' + repo;
+var root = path.resolve('./');
 
-	if (!exists(component)) {
-		console.log(dep.join('/') + ' does not exist in `components`, you should ' +
-			'install the components first.');
-		return;
-	}
-	if (exists(nodemodule)) {
-		try {
-			var linkpath = readlink(nodemodule);
-			if (linkpath !== linkto)
-				return; // do not overwrite existing dependencies
-		} catch (e) {
-			// if its not a link, don’t bother at all
-			return;
+linkInto(deps, path.resolve('node_modules'));
+
+/**
+ * Recursively creates symlinks for all the dependencies
+ */
+function linkInto(deps, modulePath, done) {
+	done = done || {};
+	for (var key in deps) {
+		if (key in done)
+			continue;
+		var slug = key.replace('/', '-');
+		var name = key.split('/').pop();
+		var dir = path.resolve('components', slug);
+		var nodepath = path.resolve(modulePath, name);
+
+		// create a bogus package.json with a `main`
+		var component = require(path.resolve(dir, 'component.json'));
+		var pkgfile = path.resolve(dir, 'package.json');
+		if (component.main && !exists(pkgfile)) {
+			write(pkgfile, JSON.stringify({main: component.main}, 2));
 		}
+
+		// create the symlink
+		if (exists(nodepath))
+			continue;
+		link(dir, nodepath);
+		done[key] = true; // only once for each dependency
+		console.log('  \033[90mLinking :\033[0m \033[36m%s\033[0m -> \033[36m%s\033[0m',
+			path.relative(root, nodepath), path.relative(root, dir));
+		// create node_modules dir
+		var subpath = path.resolve(nodepath, 'node_modules');
+		if (!exists(subpath))
+			fs.mkdirSync(subpath);
+		// recurse to dependencies
+		linkInto(deps[key], subpath, done);
+	}
+}
+
+// copied mostly from component-size
+function dependencies(file) {
+	var json = require(path.resolve(file));
+	var deps = json.dependencies || {};
+	var ret = {};
+
+	for (var key in deps) {
+		var slug = key.replace('/', '-');
+		var dep = path.resolve('components', slug, 'component.json');
+		ret[key] = dependencies(dep);
 	}
 
-	// create a bogus package.json with a `main`
-	var componentjson = JSON.parse(read(component + '/component.json', 'utf8'));
-	if (componentjson.main) {
-		write(component + '/package.json',
-			JSON.stringify({main: componentjson.main}, 2));
-	}
-
-	// oh boy, those relative symlinks -_-
-	try {
-		link(linkto, nodemodule);
-	} catch (e) {} // ignore already exists error
-	console.log('Created symlink `' + nodemodule + ' -> ' + linkto + '`.');
-});
+	return ret;
+}
 
