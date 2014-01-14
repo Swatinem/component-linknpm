@@ -2,7 +2,7 @@
   "name": "component-linknpm",
   "description": "Link downloaded components into node_modules",
   "version": "0.0.1",
-  "keywords": [],
+  "keywords": ["component", "node_modules", "npm"],
   "bin": {
     "component-linknpm": "./bin/component-linknpm.js"
   },
